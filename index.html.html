@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Longevity Habit Tracker</title>
+  <style>
+    :root {
+      --bg: #f5f7f6;
+      --panel: #ffffff;
+      --ink: #18201c;
+      --muted: #66716b;
+      --line: #dfe5e1;
+      --green: #2f7d4a;
+      --green-soft: #e8f3eb;
+      --amber: #b17622;
+      --amber-soft: #fff4df;
+      --blue: #386f92;
+      --blue-soft: #eaf2f7;
+      --red: #b34e45;
+      --shadow: 0 6px 20px rgba(31, 47, 38, 0.06);
+      --radius: 6px;
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button, input, textarea { font: inherit; letter-spacing: 0; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid rgba(56, 111, 146, 0.25);
+      outline-offset: 2px;
+    }
+
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: minmax(230px, 1fr) auto minmax(230px, 1fr);
+      align-items: center;
+      gap: 18px;
+      min-height: 68px;
+      padding: 10px 22px;
+      background: rgba(255,255,255,0.97);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--green);
+      color: white;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .brand h1 { margin: 0; font-size: 1.22rem; white-space: nowrap; }
+    .brand small { display: block; margin-top: 2px; color: var(--muted); font-size: 0.73rem; }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(78px, 1fr));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: white;
+    }
+    .tab {
+      border: 0;
+      border-right: 1px solid var(--line);
+      padding: 9px 16px;
+      background: white;
+      color: var(--ink);
+      font-weight: 700;
+    }
+    .tab:last-child { border-right: 0; }
+    .tab.active { background: var(--green); color: white; }
+
+    .header-actions { display: flex; justify-content: flex-end; align-items: center; gap: 9px; }
+    .date-input, .command, .icon-command {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: white;
+      color: var(--ink);
+    }
+    .date-input { padding: 7px 10px; }
+    .command { padding: 8px 12px; font-weight: 750; }
+    .command.primary { background: var(--green); border-color: var(--green); color: white; }
+    .command.danger { color: var(--red); }
+    .icon-command { width: 38px; padding: 0; font-size: 18px; }
+
+    main { width: min(1500px, calc(100% - 32px)); margin: 18px auto 40px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .status-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      min-height: 104px;
+      padding: 15px 16px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .metric label { color: var(--muted); font-size: 0.76rem; font-weight: 800; text-transform: uppercase; }
+    .metric strong { display: block; margin: 7px 0 3px; font-size: 1.72rem; line-height: 1; }
+    .metric span { color: var(--muted); font-size: 0.78rem; }
+    .meter { height: 8px; margin-top: 13px; background: #e9eeeb; border-radius: 999px; overflow: hidden; }
+    .meter > i { display: block; height: 100%; background: var(--green); border-radius: inherit; }
+
+    .today-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(370px, 0.85fr); gap: 14px; align-items: start; }
+    .today-grid > *, .lower-grid > *, .right-stack { min-width: 0; }
+    .right-stack { display: grid; gap: 14px; }
+    .panel { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      padding: 11px 15px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-head h2 { margin: 0; font-size: 0.98rem; }
+    .panel-head p { margin: 0; color: var(--muted); font-size: 0.78rem; }
+    .panel-body { padding: 14px 15px; }
+
+    .category-block + .category-block { border-top: 1px solid var(--line); }
+    .category-block { display: grid; grid-template-columns: 150px minmax(0, 1fr); }
+    .category-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 15px 12px 14px 15px;
+      color: var(--ink);
+      font-weight: 800;
+    }
+    .category-icon {
+      width: 28px;
+      height: 28px;
+      flex: 0 0 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 900;
+    }
+    .habit-list { padding: 8px 12px 8px 0; }
+    .habit-row {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto auto;
+      align-items: center;
+      gap: 8px;
+      min-height: 36px;
+      padding: 3px 4px;
+      border-radius: 4px;
+    }
+    .habit-row:hover { background: #f7f9f8; }
+    .habit-row.inactive { opacity: 0.52; }
+    .habit-row input[type="checkbox"], .weekly-table input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--green); }
+    .habit-name { line-height: 1.3; }
+    .habit-row.done .habit-name { color: var(--muted); text-decoration: line-through; }
+    .active-toggle {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: white;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 800;
+    }
+    .active-toggle.on { color: var(--green); background: var(--green-soft); border-color: #bfd7c5; }
+    .note-button { width: 30px; height: 30px; border: 0; background: transparent; color: var(--blue); font-size: 16px; }
+    .habit-note { grid-column: 2 / -1; display: none; padding: 5px 0 8px; }
+    .habit-note.open { display: block; }
+    .habit-note input { width: 100%; padding: 8px 9px; border: 1px solid var(--line); border-radius: 4px; }
+
+    .category-progress { display: grid; gap: 12px; }
+    .progress-row { display: grid; grid-template-columns: 106px minmax(80px, 1fr) 44px; align-items: center; gap: 10px; }
+    .progress-row strong { font-size: 0.82rem; }
+    .progress-track { height: 9px; background: #e9eeeb; border-radius: 999px; overflow: hidden; }
+    .progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--green); }
+    .progress-row span { text-align: right; color: var(--muted); font-size: 0.76rem; }
+
+    .weekly-wrap { overflow-x: auto; }
+    .weekly-table, .history-table { width: 100%; border-collapse: collapse; }
+    .weekly-table { min-width: 710px; }
+    th, td { padding: 10px 11px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; }
+    td { font-size: 0.82rem; }
+    .weekly-table th:not(:nth-child(-n+2)), .weekly-table td:not(:nth-child(-n+2)) { text-align: center; }
+    tr:last-child td { border-bottom: 0; }
+    .target-status { font-weight: 800; color: var(--muted); white-space: nowrap; }
+    .target-status.met { color: var(--green); }
+
+    .reflection { width: 100%; min-height: 82px; resize: vertical; padding: 10px; border: 1px solid var(--line); border-radius: 4px; }
+    .save-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+    .save-status { color: var(--muted); font-size: 0.78rem; }
+
+    .lower-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(450px, 1.1fr); gap: 14px; margin-top: 14px; }
+    .trend-chart { width: 100%; min-height: 250px; display: block; }
+    .trend-chart text { fill: var(--muted); font-size: 10px; }
+    .trend-chart .grid { stroke: var(--line); stroke-width: 1; }
+    .trend-chart .avg { stroke: var(--blue); stroke-width: 2; stroke-dasharray: 5 5; }
+    .trend-chart .line { fill: none; stroke: var(--green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .trend-chart .dot { fill: white; stroke: var(--green); stroke-width: 3; }
+    .history-scroll { overflow-x: auto; }
+    .history-table { min-width: 630px; }
+    .row-actions { display: flex; gap: 4px; }
+    .row-actions button { width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 4px; background: white; }
+
+    .history-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .history-toolbar input { padding: 8px 10px; border: 1px solid var(--line); border-radius: 4px; }
+    .empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+    .storage-note { color: var(--muted); font-size: 0.74rem; }
+    .storage-note strong { color: var(--green); }
+    .toast {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 50;
+      max-width: 360px;
+      padding: 11px 14px;
+      border-radius: var(--radius);
+      background: #17221b;
+      color: white;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: 180ms ease;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 1050px) {
+      .app-header { grid-template-columns: 1fr auto; }
+      .tabs { grid-row: 2; grid-column: 1 / -1; }
+      .today-grid, .lower-grid { grid-template-columns: 1fr; }
+      .status-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 650px) {
+      .app-header { grid-template-columns: 1fr; padding: 10px 12px; }
+      .header-actions { justify-content: stretch; flex-wrap: wrap; }
+      .header-actions .date-input { flex: 1; }
+      main { width: min(100% - 18px, 1500px); margin-top: 10px; }
+      .status-strip { grid-template-columns: 1fr; }
+      .category-block { grid-template-columns: 1fr; }
+      .category-label { padding-bottom: 5px; }
+      .habit-list { padding: 0 10px 10px; }
+      .habit-row { grid-template-columns: 24px minmax(0, 1fr) auto; }
+      .active-toggle { display: none; }
+      .lower-grid { grid-template-columns: 1fr; }
+      .brand small { display: none; }
+      .command { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">L</div>
+      <div><h1>Longevity Habit Tracker</h1><small>Saved locally in this browser</small></div>
+    </div>
+    <nav class="tabs" aria-label="Dashboard views">
+      <button class="tab active" data-view="today">Today</button>
+      <button class="tab" data-view="history">History</button>
+      <button class="tab" data-view="weekly">Weekly</button>
+    </nav>
+    <div class="header-actions">
+      <input id="datePicker" class="date-input" type="date" aria-label="Selected date">
+      <button id="exportButton" class="command" title="Download all saved data as CSV">Download CSV</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="todayView" class="view active">
+      <div class="status-strip" id="statusStrip"></div>
+      <div class="today-grid">
+        <section class="panel">
+          <div class="panel-head"><h2>Daily habits</h2><p id="todayCount"></p></div>
+          <div id="dailyHabits"></div>
+        </section>
+        <div class="right-stack">
+          <section class="panel">
+            <div class="panel-head"><h2>Category progress</h2><p>Selected date</p></div>
+            <div class="panel-body category-progress" id="categoryProgress"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Weekly targets</h2><p id="weekLabel"></p></div>
+            <div class="weekly-wrap" id="weeklyCompact"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><h2>Day reflection</h2><p>Optional</p></div>
+            <div class="panel-body">
+              <textarea id="dayNote" class="reflection" placeholder="Short note about sleep, energy, meals, movement, or anything that affected the day."></textarea>
+              <div class="save-row"><span class="save-status" id="saveStatus">Changes save automatically</span><button id="saveButton" class="command primary">Save day</button></div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="lower-grid">
+        <section class="panel">
+          <div class="panel-head"><h2>14-day completion trend</h2><p>Overall score</p></div>
+          <div class="panel-body"><svg id="trendChart" class="trend-chart" viewBox="0 0 680 260" role="img" aria-label="Fourteen day completion trend"></svg></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head"><h2>Recent entries</h2><p>Saved dates</p></div>
+          <div class="history-scroll" id="recentHistory"></div>
+        </section>
+      </div>
+    </section>
+
+    <section id="historyView" class="view">
+      <section class="panel">
+        <div class="panel-head"><h2>History</h2><p>All locally saved daily entries</p></div>
+        <div class="panel-body">
+          <div class="history-toolbar"><input id="historySearch" type="search" placeholder="Filter by date or note"><span class="storage-note"><strong>Local storage</strong> - this browser and device only</span></div>
+          <div class="history-scroll" id="fullHistory"></div>
+        </div>
+      </section>
+    </section>
+
+    <section id="weeklyView" class="view">
+      <section class="panel">
+        <div class="panel-head"><h2>Weekly targets</h2><p id="weeklyPageLabel"></p></div>
+        <div class="weekly-wrap" id="weeklyFull"></div>
+      </section>
+      <section class="panel" style="margin-top:14px">
+        <div class="panel-head"><h2>Weekly progress</h2><p>Target-adjusted completion</p></div>
+        <div class="panel-body" id="weeklySummary"></div>
+      </section>
+    </section>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const STORAGE_KEY = "longevityHabitTracker.v1";
+    const categories = ["Sleep", "Food", "Movement", "Hygiene", "Environment", "Digital Health"];
+    const categoryIcons = { Sleep: "S", Food: "F", Movement: "M", Hygiene: "H", Environment: "E", "Digital Health": "D" };
+    const dailyDefinitions = [
+      ["sleep-bed", "Sleep", "Spend 8 hours in bed", "1"],
+      ["sleep-time", "Sleep", "Keep the same bedtime, before midnight", "2, 38"],
+      ["sleep-food", "Sleep", "Finish eating well before bed", "3"],
+      ["sleep-screen", "Sleep", "Avoid screens and bright lights for 1 hour before bed", "5, 29"],
+      ["sleep-winddown", "Sleep", "Follow a calm wind-down routine; read a physical book if helpful", "36, 37"],
+      ["sleep-cool", "Sleep", "Keep the bedroom comfortably cool", "31"],
+      ["food-dinner", "Food", "Choose a calm, whole-food dinner", "4, 10"],
+      ["food-sugar", "Food", "Avoid added sugar including jaggery", "6"],
+      ["food-processed", "Food", "Avoid convenience-store and ultra-processed foods", "7"],
+      ["food-fried", "Food", "Avoid fried foods", "8"],
+      ["food-plants", "Food", "Eat vegetables, fruit, nuts, legumes, and berries", "10"],
+      ["food-water", "Food", "Make an effort to drink water", "16"],
+      ["food-coffee", "Food", "Finish coffee before noon", "28"],
+      ["food-alcohol", "Food", "Avoid alcohol", "27"],
+      ["food-smoking", "Food", "Do not smoke anything", "35"],
+      ["move-meals", "Movement", "Walk a little after meals or do air squats", "11"],
+      ["move-stretch", "Movement", "Stretch", "14"],
+      ["move-sitting", "Movement", "Break up long periods of sitting", "25"],
+      ["move-posture", "Movement", "Practice upright posture", "19"],
+      ["hygiene-oral", "Hygiene", "Water floss, floss, brush, and tongue-scrape morning and night", "15"],
+      ["env-shoes", "Environment", "Leave shoes at the door", "9"],
+      ["env-sun", "Environment", "Get low-UV morning sunlight", "17"],
+      ["env-air", "Environment", "Circulate fresh air in rooms", "22"],
+      ["digital-notifications", "Digital Health", "Keep notifications off and limit social media", "33, 34"]
+    ].map(([id, category, action, source]) => ({ id, category, action, source }));
+
+    const weeklyDefinitions = [
+      { id: "cardio", category: "Cardio", action: "Get your heart rate high", target: 3, source: "12" },
+      { id: "strength", category: "Strength", action: "Lift heavy things", target: 2, source: "13" },
+      { id: "connection", category: "Connection", action: "See at least one friend", target: 1, source: "20" },
+      { id: "routine", category: "Routine", action: "Review morning and evening routines", target: 1, source: "38" },
+      { id: "simplicity", category: "Simplicity", action: "Add changes slowly and remove low-value commitments", target: 1, source: "40, 41" }
+    ];
+
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const datePicker = document.getElementById("datePicker");
+    let selectedDate = localDateISO(new Date());
+    let state = loadState();
+    let saveTimer;
+
+    function loadState() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        if (parsed && parsed.version === 1) return parsed;
+      } catch (error) { console.warn(error); }
+      return { version: 1, daily: {}, weekly: {} };
+    }
+
+    function persist(message = "Saved locally") {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        document.getElementById("saveStatus").textContent = message;
+      } catch (error) {
+        showToast("Could not save locally. Browser storage may be blocked or full.");
+      }
+    }
+
+    function localDateISO(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    function parseDate(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); }
+    function formatDate(iso, options = { day: "2-digit", month: "short", year: "numeric" }) { return parseDate(iso).toLocaleDateString("en-IN", options); }
+    function getWeekStart(iso) {
+      const date = parseDate(iso);
+      const day = date.getDay();
+      date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
+      return localDateISO(date);
+    }
+
+    function ensureDay(iso) {
+      if (!state.daily[iso]) state.daily[iso] = { habits: {}, note: "", updatedAt: null };
+      dailyDefinitions.forEach(def => {
+        if (!state.daily[iso].habits[def.id]) state.daily[iso].habits[def.id] = { active: true, done: false, note: "" };
+      });
+      return state.daily[iso];
+    }
+
+    function ensureWeek(iso) {
+      const key = getWeekStart(iso);
+      if (!state.weekly[key]) state.weekly[key] = { targets: {}, updatedAt: null };
+      weeklyDefinitions.forEach(def => {
+        if (!state.weekly[key].targets[def.id]) state.weekly[key].targets[def.id] = { active: true, days: [false, false, false, false, false, false, false] };
+      });
+      return { key, entry: state.weekly[key] };
+    }
+
+    function dayScore(iso) {
+      const entry = state.daily[iso];
+      if (!entry) return { completed: 0, active: dailyDefinitions.length, pct: 0 };
+      let completed = 0, active = 0;
+      dailyDefinitions.forEach(def => {
+        const item = entry.habits[def.id] || { active: true, done: false };
+        if (item.active) { active++; if (item.done) completed++; }
+      });
+      return { completed, active, pct: active ? completed / active : 0 };
+    }
+
+    function weeklyScore(iso) {
+      const { entry } = ensureWeek(iso);
+      let target = 0, completed = 0;
+      weeklyDefinitions.forEach(def => {
+        const item = entry.targets[def.id];
+        if (!item.active) return;
+        target += def.target;
+        completed += Math.min(def.target, item.days.filter(Boolean).length);
+      });
+      return { target, completed, pct: target ? completed / target : 0 };
+    }
+
+    function averageScore(endIso, count = 7) {
+      const end = parseDate(endIso);
+      let total = 0;
+      for (let i = 0; i < count; i++) {
+        const d = new Date(end); d.setDate(d.getDate() - i);
+        total += dayScore(localDateISO(d)).pct;
+      }
+      return total / count;
+    }
+
+    function renderAll() {
+      ensureDay(selectedDate);
+      ensureWeek(selectedDate);
+      datePicker.value = selectedDate;
+      renderStatus();
+      renderDailyHabits();
+      renderCategoryProgress();
+      renderWeekly("weeklyCompact", true);
+      renderWeekly("weeklyFull", false);
+      renderWeeklySummary();
+      document.getElementById("dayNote").value = state.daily[selectedDate].note || "";
+      renderTrend();
+      renderHistory();
+    }
+
+    function renderStatus() {
+      const score = dayScore(selectedDate);
+      const avg = averageScore(selectedDate);
+      const week = weeklyScore(selectedDate);
+      const cards = [
+        ["Today's completion", `${Math.round(score.pct * 100)}%`, `${score.completed} of ${score.active} active habits`, score.pct],
+        ["7-day average", `${Math.round(avg * 100)}%`, "Rolling completion score", avg],
+        ["Active habits", `${score.active}`, `${dailyDefinitions.length - score.active} paused for this date`, score.active / dailyDefinitions.length],
+        ["Weekly progress", `${Math.round(week.pct * 100)}%`, `${week.completed} of ${week.target} target sessions`, week.pct]
+      ];
+      document.getElementById("statusStrip").innerHTML = cards.map(([label, value, note, pct]) => `
+        <article class="metric"><label>${label}</label><strong>${value}</strong><span>${note}</span><div class="meter"><i style="width:${Math.min(100, pct * 100)}%"></i></div></article>
+      `).join("");
+      document.getElementById("todayCount").textContent = `${score.completed} / ${score.active} completed`;
+      const weekStart = getWeekStart(selectedDate);
+      const end = parseDate(weekStart); end.setDate(end.getDate() + 6);
+      const label = `${formatDate(weekStart, { day: "2-digit", month: "short" })} - ${end.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`;
+      document.getElementById("weekLabel").textContent = label;
+      document.getElementById("weeklyPageLabel").textContent = label;
+    }
+
+    function renderDailyHabits() {
+      const entry = ensureDay(selectedDate);
+      document.getElementById("dailyHabits").innerHTML = categories.map(category => {
+        const defs = dailyDefinitions.filter(def => def.category === category);
+        const rows = defs.map(def => {
+          const item = entry.habits[def.id];
+          return `<div class="habit-row ${item.done ? "done" : ""} ${item.active ? "" : "inactive"}" data-id="${def.id}">
+            <input class="done-check" type="checkbox" ${item.done ? "checked" : ""} ${item.active ? "" : "disabled"} aria-label="Mark ${escapeHtml(def.action)} complete">
+            <span class="habit-name">${escapeHtml(def.action)}</span>
+            <button class="active-toggle ${item.active ? "on" : ""}" title="Include or pause this habit for the selected date">${item.active ? "Active" : "Paused"}</button>
+            <button class="note-button" title="Add a note" aria-label="Add note">${item.note ? "*" : "+"}</button>
+            <div class="habit-note ${item.note ? "open" : ""}"><input value="${escapeAttr(item.note)}" placeholder="Optional note for this habit"></div>
+          </div>`;
+        }).join("");
+        return `<section class="category-block"><div class="category-label"><span class="category-icon">${categoryIcons[category]}</span><span>${category}</span></div><div class="habit-list">${rows}</div></section>`;
+      }).join("");
+
+      document.querySelectorAll(".habit-row").forEach(row => {
+        const id = row.dataset.id;
+        row.querySelector(".done-check").addEventListener("change", event => {
+          entry.habits[id].done = event.target.checked;
+          touchDay(); renderAll();
+        });
+        row.querySelector(".active-toggle").addEventListener("click", () => {
+          entry.habits[id].active = !entry.habits[id].active;
+          if (!entry.habits[id].active) entry.habits[id].done = false;
+          touchDay(); renderAll();
+        });
+        row.querySelector(".note-button").addEventListener("click", () => row.querySelector(".habit-note").classList.toggle("open"));
+        row.querySelector(".habit-note input").addEventListener("input", event => {
+          entry.habits[id].note = event.target.value;
+          touchDay(false);
+        });
+      });
+    }
+
+    function renderCategoryProgress() {
+      const entry = ensureDay(selectedDate);
+      document.getElementById("categoryProgress").innerHTML = categories.map(category => {
+        const defs = dailyDefinitions.filter(def => def.category === category);
+        const active = defs.filter(def => entry.habits[def.id].active);
+        const completed = active.filter(def => entry.habits[def.id].done).length;
+        const pct = active.length ? completed / active.length : 0;
+        return `<div class="progress-row"><strong>${category}</strong><div class="progress-track"><i style="width:${pct * 100}%"></i></div><span>${completed}/${active.length}</span></div>`;
+      }).join("");
+    }
+
+    function weeklyTableMarkup(compact) {
+      const { entry } = ensureWeek(selectedDate);
+      const visibleDays = compact ? days.slice(0, 7) : days;
+      return `<table class="weekly-table"><thead><tr><th>Category</th><th>Weekly target</th>${visibleDays.map(day => `<th>${day}</th>`).join("")}<th>Target</th></tr></thead><tbody>
+        ${weeklyDefinitions.map(def => {
+          const item = entry.targets[def.id];
+          const count = item.days.filter(Boolean).length;
+          return `<tr data-weekly-id="${def.id}"><td><strong>${def.category}</strong></td><td>${escapeHtml(def.action)}</td>${item.days.map((done, index) => `<td><input type="checkbox" data-day="${index}" ${done ? "checked" : ""} ${item.active ? "" : "disabled"} aria-label="${def.category} ${days[index]}"></td>`).join("")}<td><span class="target-status ${count >= def.target ? "met" : ""}">${count}/${def.target}</span></td></tr>`;
+        }).join("")}</tbody></table>`;
+    }
+
+    function renderWeekly(containerId, compact) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = weeklyTableMarkup(compact);
+      container.querySelectorAll("input[type='checkbox']").forEach(box => {
+        box.addEventListener("change", event => {
+          const id = event.target.closest("tr").dataset.weeklyId;
+          const dayIndex = Number(event.target.dataset.day);
+          const { entry } = ensureWeek(selectedDate);
+          entry.targets[id].days[dayIndex] = event.target.checked;
+          entry.updatedAt = new Date().toISOString();
+          persist(); renderAll();
+        });
+      });
+    }
+
+    function renderWeeklySummary() {
+      const { entry } = ensureWeek(selectedDate);
+      document.getElementById("weeklySummary").innerHTML = `<div class="category-progress">${weeklyDefinitions.map(def => {
+        const item = entry.targets[def.id];
+        const count = item.days.filter(Boolean).length;
+        const pct = Math.min(1, count / def.target);
+        return `<div class="progress-row"><strong>${def.category}</strong><div class="progress-track"><i style="width:${pct * 100}%"></i></div><span>${count}/${def.target}</span></div>`;
+      }).join("")}</div>`;
+    }
+
+    function touchDay(immediate = true) {
+      state.daily[selectedDate].updatedAt = new Date().toISOString();
+      document.getElementById("saveStatus").textContent = "Saving...";
+      clearTimeout(saveTimer);
+      if (immediate) persist(); else saveTimer = setTimeout(() => persist(), 400);
+    }
+
+    function renderTrend() {
+      const svg = document.getElementById("trendChart");
+      const end = parseDate(selectedDate);
+      const data = [];
+      for (let i = 13; i >= 0; i--) {
+        const d = new Date(end); d.setDate(d.getDate() - i);
+        const iso = localDateISO(d);
+        data.push({ iso, value: dayScore(iso).pct });
+      }
+      const width = 680, height = 260, pad = { left: 36, right: 16, top: 18, bottom: 38 };
+      const plotW = width - pad.left - pad.right, plotH = height - pad.top - pad.bottom;
+      const x = i => pad.left + (i / (data.length - 1)) * plotW;
+      const y = v => pad.top + (1 - v) * plotH;
+      const avg = data.reduce((sum, point) => sum + point.value, 0) / data.length;
+      const grid = [0, .25, .5, .75, 1].map(v => `<line class="grid" x1="${pad.left}" x2="${width - pad.right}" y1="${y(v)}" y2="${y(v)}"></line><text x="2" y="${y(v) + 4}">${Math.round(v * 100)}%</text>`).join("");
+      const path = data.map((point, i) => `${i ? "L" : "M"} ${x(i).toFixed(1)} ${y(point.value).toFixed(1)}`).join(" ");
+      const points = data.map((point, i) => `<circle class="dot" cx="${x(i)}" cy="${y(point.value)}" r="4"><title>${formatDate(point.iso)}: ${Math.round(point.value * 100)}%</title></circle>`).join("");
+      const labels = data.map((point, i) => i % 2 === 0 || i === data.length - 1 ? `<text x="${x(i)}" y="${height - 14}" text-anchor="middle">${formatDate(point.iso, { day: "2-digit", month: "short" })}</text>` : "").join("");
+      svg.innerHTML = `${grid}<line class="avg" x1="${pad.left}" x2="${width - pad.right}" y1="${y(avg)}" y2="${y(avg)}"></line><path class="line" d="${path}"></path>${points}${labels}`;
+    }
+
+    function savedDates() { return Object.keys(state.daily).filter(iso => state.daily[iso].updatedAt || state.daily[iso].note || Object.values(state.daily[iso].habits || {}).some(item => item.done || item.note || item.active === false)).sort().reverse(); }
+
+    function historyMarkup(dates) {
+      if (!dates.length) return `<div class="empty">No saved entries yet. Complete a habit or add a reflection to create history.</div>`;
+      return `<table class="history-table"><thead><tr><th>Date</th><th>Completed</th><th>Completion</th><th>Reflection</th><th>Actions</th></tr></thead><tbody>${dates.map(iso => {
+        const score = dayScore(iso); const note = state.daily[iso].note || "";
+        return `<tr data-date="${iso}"><td><strong>${formatDate(iso)}</strong></td><td>${score.completed}/${score.active}</td><td>${Math.round(score.pct * 100)}%</td><td>${escapeHtml(note) || "-"}</td><td><div class="row-actions"><button data-action="edit" title="Open this date">Edit</button><button data-action="delete" title="Delete this date">Del</button></div></td></tr>`;
+      }).join("")}</tbody></table>`;
+    }
+
+    function wireHistory(container) {
+      container.querySelectorAll("button").forEach(button => {
+        button.addEventListener("click", () => {
+          const iso = button.closest("tr").dataset.date;
+          if (button.dataset.action === "edit") {
+            selectedDate = iso; switchView("today"); renderAll(); window.scrollTo({ top: 0, behavior: "smooth" });
+          } else if (confirm(`Delete the saved entry for ${formatDate(iso)}?`)) {
+            delete state.daily[iso]; persist("Entry deleted"); renderAll();
+          }
+        });
+      });
+    }
+
+    function renderHistory() {
+      const all = savedDates();
+      const recent = document.getElementById("recentHistory");
+      recent.innerHTML = historyMarkup(all.slice(0, 6)); wireHistory(recent);
+      const query = document.getElementById("historySearch").value.trim().toLowerCase();
+      const filtered = all.filter(iso => !query || iso.includes(query) || (state.daily[iso].note || "").toLowerCase().includes(query));
+      const full = document.getElementById("fullHistory");
+      full.innerHTML = historyMarkup(filtered); wireHistory(full);
+    }
+
+    function exportCSV() {
+      const headers = ["record_type", "date_or_week", "category", "action", "active", "done", "notes", "source", "target", ...days.map(day => day.toLowerCase()), "completed"];
+      const rows = [headers];
+      Object.keys(state.daily).sort().forEach(iso => {
+        const entry = state.daily[iso];
+        dailyDefinitions.forEach(def => {
+          const item = entry.habits[def.id] || { active: true, done: false, note: "" };
+          rows.push(["daily", iso, def.category, def.action, item.active, item.done, item.note || "", def.source, "", "", "", "", "", "", "", "", ""]);
+        });
+        rows.push(["daily_reflection", iso, "", "Day reflection", true, "", entry.note || "", "", "", "", "", "", "", "", "", "", ""]);
+      });
+      Object.keys(state.weekly).sort().forEach(week => {
+        const entry = state.weekly[week];
+        weeklyDefinitions.forEach(def => {
+          const item = entry.targets[def.id] || { active: true, days: Array(7).fill(false) };
+          rows.push(["weekly", week, def.category, def.action, item.active, "", "", def.source, def.target, ...item.days, item.days.filter(Boolean).length]);
+        });
+      });
+      const csv = rows.map(row => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `longevity-habit-tracker-${localDateISO(new Date())}.csv`;
+      document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(link.href);
+      showToast("CSV downloaded");
+    }
+
+    function csvCell(value) { const text = String(value ?? ""); return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text; }
+    function escapeHtml(value) { return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[char]); }
+    function escapeAttr(value) { return escapeHtml(value).replace(/`/g, "&#096;"); }
+    function showToast(message) { const toast = document.getElementById("toast"); toast.textContent = message; toast.classList.add("show"); setTimeout(() => toast.classList.remove("show"), 2200); }
+
+    function switchView(name) {
+      document.querySelectorAll(".tab").forEach(tab => tab.classList.toggle("active", tab.dataset.view === name));
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === `${name}View`));
+    }
+
+    document.querySelectorAll(".tab").forEach(tab => tab.addEventListener("click", () => switchView(tab.dataset.view)));
+    datePicker.addEventListener("change", () => { selectedDate = datePicker.value || localDateISO(new Date()); renderAll(); });
+    document.getElementById("dayNote").addEventListener("input", event => { ensureDay(selectedDate).note = event.target.value; touchDay(false); });
+    document.getElementById("saveButton").addEventListener("click", () => { touchDay(); showToast("Day saved locally"); });
+    document.getElementById("exportButton").addEventListener("click", exportCSV);
+    document.getElementById("historySearch").addEventListener("input", renderHistory);
+    window.addEventListener("storage", event => { if (event.key === STORAGE_KEY) { state = loadState(); renderAll(); } });
+
+    renderAll();
+  </script>
+</body>
+</html>
